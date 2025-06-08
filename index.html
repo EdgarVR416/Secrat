@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strace - Monaco Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: rgb(24, 24, 27);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: rgb(24, 24, 27);
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            color: #ffffff;
+        }
+
+        .logo-image {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            object-fit: contain;
+        }
+
+        .tab-container {
+            background: rgb(24, 24, 27);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            min-height: 40px;
+            overflow-x: auto;
+        }
+
+        .tab-list {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            padding: 8px 12px 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 13px;
+            font-weight: 400;
+            min-width: 120px;
+            max-width: 200px;
+            position: relative;
+            transform: translateY(0);
+            opacity: 0;
+            animation: slideInTab 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .tab.active {
+            background: rgb(24, 24, 27);
+            border-color: #007acc;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+        }
+
+        .tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .tab-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #888;
+            transition: color 0.2s ease;
+        }
+
+        .tab.active .tab-icon {
+            color: #007acc;
+        }
+
+        .tab-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tab-name input {
+            background: transparent;
+            border: none;
+            color: inherit;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            width: 100%;
+        }
+
+        .tab-close {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .tab-close:hover {
+            background: #ff4444;
+            opacity: 1;
+        }
+
+        .tab-close::before {
+            content: '×';
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .add-tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 10px;
+        }
+
+        .add-tab:hover {
+            background: #007acc;
+            border-color: #007acc;
+        }
+
+        .add-tab::before {
+            content: '+';
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .editor-container {
+            flex: 1;
+            position: relative;
+            background: rgb(24, 24, 27);
+        }
+
+        .editor-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .editor-content.active {
+            opacity: 1;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background: rgb(24, 24, 27);
+            color: #cccccc;
+        }
+
+        .welcome-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .welcome-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .welcome-subtitle {
+            font-size: 14px;
+            opacity: 0.7;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        @keyframes slideInTab {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOutTab {
+            from {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(20px) scale(0.9);
+            }
+        }
+
+        .tab.removing {
+            animation: slideOutTab 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+
+
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgb(24, 24, 27);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+                    <div class="logo">
+            <img src="https://i.imgur.com/Imugo20.png" alt="Strace" class="logo-image">
+            <span>Strace</span>
+        </div>
+            <span style="font-size: 12px; opacity: 0.7;">v1.1.0</span>
+        </div>
+
+        <div class="tab-container">
+            <div class="tab-list" id="tabList">
+
+            </div>
+            <div class="add-tab" id="addTab" title="Add new tab"></div>
+        </div>
+
+        <div class="editor-container" id="editorContainer">
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-icon">
+                    <img src="https://i.imgur.com/Imugo20.png" alt="Strace Logo">
+                </div>
+                <div class="welcome-title">Welcome to Strace</div>
+                <div class="welcome-subtitle">
+                    A powerful Monaco editor with Lua support and animated tabs.<br>
+                    Click the + button to create your first file.
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script src="https://unpkg.com/@tabler/icons@latest/dist/tabler-sprite.js"></script>
+    <script>
+        require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } });
+
+        class StraceEditor {
+            constructor() {
+                this.tabs = [];
+                this.activeTabId = null;
+                this.tabCounter = 0;
+                this.editors = new Map();
+                
+                this.init();
+            }
+
+            init() {
+                require(['vs/editor/editor.main'], () => {
+                    this.setupEventListeners();
+                    this.updateWelcomeScreen();
+                });
+            }
+
+            setupEventListeners() {
+                document.getElementById('addTab').addEventListener('click', () => {
+                    this.createTab();
+                });
+
+                document.getElementById('tabList').addEventListener('click', (e) => {
+                    const tab = e.target.closest('.tab');
+                    if (!tab) return;
+
+                    const tabId = tab.dataset.tabId;
+                    
+                    if (e.target.classList.contains('tab-close')) {
+                        this.closeTab(tabId);
+                    } else if (!e.target.matches('input')) {
+                        this.switchTab(tabId);
+                    }
+                });
+
+                document.getElementById('tabList').addEventListener('dblclick', (e) => {
+                    const tabName = e.target.closest('.tab-name');
+                    if (tabName && !tabName.querySelector('input')) {
+                        this.startRenaming(tabName);
+                    }
+                });
+            }
+
+            createTab(name = null, content = null) {
+                const tabId = `tab-${++this.tabCounter}`;
+                const tabName = name || `Tab ${this.tabCounter}`;
+                const defaultContent = content !== null ? content : 'print("W Strace")';
+                
+                const tab = {
+                    id: tabId,
+                    name: tabName,
+                    content: defaultContent,
+                    modified: false
+                };
+
+                this.tabs.push(tab);
+                this.renderTab(tab);
+                this.createEditor(tab);
+                this.switchTab(tabId);
+                this.updateWelcomeScreen();
+            }
+
+            renderTab(tab) {
+                const tabElement = document.createElement('div');
+                tabElement.className = 'tab';
+                tabElement.dataset.tabId = tab.id;
+                
+                tabElement.innerHTML = `
+                    <div class="tab-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                        </svg>
+                    </div>
+                    <div class="tab-name">
+                        <span>${tab.name}</span>
+                    </div>
+                    <div class="tab-close" title="Close tab"></div>
+                `;
+
+                document.getElementById('tabList').appendChild(tabElement);
+                
+                setTimeout(() => {
+                    tabElement.style.opacity = '1';
+                }, 10);
+            }
+
+            createEditor(tab) {
+                const editorContainer = document.createElement('div');
+                editorContainer.className = 'editor-content';
+                editorContainer.id = `editor-${tab.id}`;
+                document.getElementById('editorContainer').appendChild(editorContainer);
+
+                monaco.editor.defineTheme('strace-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [],
+                    colors: {
+                        'editor.background': '#18181b',
+                        'editor.foreground': '#ffffff',
+                        'editorLineNumber.foreground': '#666666',
+                        'editorLineNumber.activeForeground': '#ffffff',
+                        'editor.selectionBackground': '#264f78',
+                        'editor.inactiveSelectionBackground': '#3a3d41',
+                        'editorCursor.foreground': '#ffffff',
+                        'editor.findMatchBackground': '#515c6a',
+                        'editor.findMatchHighlightBackground': '#ea5c004d',
+                        'editor.hoverHighlightBackground': '#264f7840',
+                        'editor.lineHighlightBackground': '#2a2d2e',
+                        'editorSuggestWidget.background': '#18181b',
+                        'editorSuggestWidget.border': '#454545',
+                        'editorWidget.background': '#18181b',
+                        'editorWidget.border': '#454545',
+                        'input.background': '#18181b',
+                        'input.border': '#454545'
+                    }
+                });
+
+                const editor = monaco.editor.create(editorContainer, {
+                    value: tab.content,
+                    language: 'lua',
+                    theme: 'strace-dark',
+                    fontFamily: 'Poppins, "Cascadia Code", "Fira Code", Consolas, monospace',
+                    fontSize: 14,
+                    lineHeight: 22,
+                    automaticLayout: true,
+                    minimap: {
+                        enabled: true
+                    },
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                    tabSize: 4,
+                    insertSpaces: true,
+                    renderWhitespace: 'selection',
+                    cursorBlinking: 'smooth',
+                    cursorSmoothCaretAnimation: true,
+                    smoothScrolling: true
+                });
+
+                this.editors.set(tab.id, editor);
+
+                editor.onDidChangeModelContent(() => {
+                    tab.content = editor.getValue();
+                    this.markTabAsModified(tab.id, true);
+                });
+
+
+            }
+
+            switchTab(tabId) {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                document.querySelector(`[data-tab-id="${tabId}"]`).classList.add('active');
+
+                document.querySelectorAll('.editor-content').forEach(editor => {
+                    editor.classList.remove('active');
+                });
+                
+                const activeEditor = document.getElementById(`editor-${tabId}`);
+                if (activeEditor) {
+                    activeEditor.classList.add('active');
+                }
+
+                this.activeTabId = tabId;
+                const activeTab = this.tabs.find(tab => tab.id === tabId);
+                
+                if (activeTab) {
+                    const editor = this.editors.get(tabId);
+                    if (editor) {
+                        editor.focus();
+                    }
+                }
+
+                this.updateWelcomeScreen();
+            }
+
+            closeTab(tabId) {
+                const tabElement = document.querySelector(`[data-tab-id="${tabId}"]`);
+                const editorElement = document.getElementById(`editor-${tabId}`);
+                
+                tabElement.classList.add('removing');
+                
+                setTimeout(() => {
+                    tabElement.remove();
+                    if (editorElement) {
+                        editorElement.remove();
+                    }
+                    
+                    const editor = this.editors.get(tabId);
+                    if (editor) {
+                        editor.dispose();
+                        this.editors.delete(tabId);
+                    }
+                    
+                    this.tabs = this.tabs.filter(tab => tab.id !== tabId);
+                    
+                     if (this.activeTabId === tabId) {
+                         if (this.tabs.length > 0) {
+                             this.switchTab(this.tabs[this.tabs.length - 1].id);
+                         } else {
+                             this.activeTabId = null;
+                         }
+                     }
+                    
+                    this.updateWelcomeScreen();
+                }, 300);
+            }
+
+            startRenaming(tabNameElement) {
+                const span = tabNameElement.querySelector('span');
+                const currentName = span.textContent;
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentName;
+                input.style.width = '100%';
+                
+                span.style.display = 'none';
+                tabNameElement.appendChild(input);
+                
+                input.focus();
+                input.select();
+                
+                const finishRenaming = () => {
+                    const newName = input.value.trim() || currentName;
+                    const tabId = tabNameElement.closest('.tab').dataset.tabId;
+                    const tab = this.tabs.find(t => t.id === tabId);
+                    
+                    if (tab) {
+                                                 tab.name = newName;
+                         span.textContent = newName;
+                    }
+                    
+                    span.style.display = 'block';
+                    input.remove();
+                };
+                
+                input.addEventListener('blur', finishRenaming);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        finishRenaming();
+                    } else if (e.key === 'Escape') {
+                        span.style.display = 'block';
+                        input.remove();
+                    }
+                });
+            }
+
+            markTabAsModified(tabId, modified) {
+                const tab = this.tabs.find(t => t.id === tabId);
+                if (tab) {
+                    tab.modified = modified;
+                    const tabElement = document.querySelector(`[data-tab-id="${tabId}"]`);
+                    const tabName = tabElement.querySelector('.tab-name span');
+                    
+                    if (modified && !tabName.textContent.startsWith('●')) {
+                        tabName.textContent = '● ' + tabName.textContent;
+                    } else if (!modified && tabName.textContent.startsWith('●')) {
+                        tabName.textContent = tabName.textContent.substring(2);
+                    }
+                }
+            }
+
+            updateWelcomeScreen() {
+                const welcomeScreen = document.getElementById('welcomeScreen');
+                if (this.tabs.length === 0) {
+                    welcomeScreen.style.display = 'flex';
+                } else {
+                    welcomeScreen.style.display = 'none';
+                }
+            }
+        }
+
+        const app = new StraceEditor();
+
+        setTimeout(() => {
+            app.createTab('tab 1', `print("W Strace")`);
+        }, 500);
+    </script>
+</body>
+</html>
